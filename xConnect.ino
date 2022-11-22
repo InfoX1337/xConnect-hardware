@@ -118,7 +118,7 @@ void loop() {
       temp = temp + 60;
     }
     fuel = Serial.readStringUntil(':').toInt();
-    gear = Serial.readStringUntil(':');btw
+    gear = Serial.readStringUntil(':');
     locale = Serial.readStringUntil(':');
   }
 
