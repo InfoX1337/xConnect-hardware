@@ -22,7 +22,7 @@ Contributors are always listed on the top of the main .ino file of each cluster.
 
 Firstly you will need to install the CAN BUS library, you can find it [here](https://github.com/coryjfowler/MCP_CAN_lib). After downloading it, you will need to install it in your Arduino IDE. You can find instructions on how to do that [here](https://www.arduino.cc/en/Guide/Libraries#toc4).
 
-After you install the CAN BUS library, you can go onto installing the cluster implementation code onto the arduino. To do that you will need to download one of the (repository branches)[https://github.com/InfoX1337/xConnect-hardware/branches]. You can do this by clicking on the green "Code" button, and then clicking on "Download ZIP". After that, you will need to extract the ZIP file, and then open the .ino file in the Arduino IDE.
+After you install the CAN BUS library, you can go onto installing the cluster implementation code onto the arduino. To do that you will need to download one of the [repository branches](https://github.com/InfoX1337/xConnect-hardware/branches). You can do this by clicking on the green "Code" button, and then clicking on "Download ZIP". After that, you will need to extract the ZIP file, and then open the .ino file in the Arduino IDE.
 
 After you open the .ino file, you will need to select the correct board and port. You can do that by going to Tools -> Board -> Arduino UNO or MEGA 2560, and then Tools -> Port -> COMX (where X is the port number). After that, you can upload the code to the arduino.
 
