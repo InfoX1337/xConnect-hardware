@@ -13,3 +13,5 @@ FUEL LVL RETURN - PIN 2
 CANH - PIN 12
 
 CANL - PIN 13
+
+Connect a 180 ohm resistor between fuel lvl, and fuel lvl return to get full fuel
