@@ -1,0 +1,15 @@
+name: Arduino Compiler
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Compile code for arduino
+      uses: ArminJo/arduino-test-compile@v3
+
