@@ -14,7 +14,7 @@ Contributors are always listed on the top of the main .ino file of each cluster.
 
 -   Arduino UNO or MEGA 2560
 -   A CAN BUS shield, we recommend the [CAN-BUS Shield V2.0](https://wiki.seeedstudio.com/CAN-BUS_Shield_V2.0/)
--   A 12V 2.5A power supply
+-   A 12V >2.5A power supply
 -   Jumper wires
 -   Cluster that you want to connect
 
