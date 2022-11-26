@@ -1,6 +1,6 @@
 # xConnect Hardware repository
 
-![scv](https://img.shields.io/badge/Required%20xConnect%20version-V1.0-brightgreen)
+![scv](https://img.shields.io/badge/Newest%20xConnect%20version-V2.0-brightgreen)
 ![discord](https://img.shields.io/discord/1034171027548278784?color=blue&label=xConnect%20discord&logo=discord&logoColor=white)
 ![license](https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-orange)
 
