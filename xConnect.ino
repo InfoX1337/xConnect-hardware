@@ -16,7 +16,7 @@
 #include <math.h>
 
 // Configuration:
-#define VERSION "1.2"
+#define VERSION "1.3"
 #define SERIAL_SPEED 115200
 #define DEBUGGER_ENABLED
 #define SPI_CS_PIN 9
@@ -24,6 +24,7 @@
 #define UP_BTN_PIN 4
 #define DOWN_BTN_PIN 5
 #define ADAPTED_FOR "FORD FIESTA MK8"
+#define HANDBRAKE_FLASH_PERIOD 50
 
 // Create a new MCP_CAN instance with the SPI_CS_PIN defined in the config.
 MCP_CAN CAN(SPI_CS_PIN);
@@ -84,6 +85,18 @@ int rpm = 0;
 int speed = 0;
 int temp = 100;  // Temperature values: (100-200) the formula from celcious is: TEMP+60 the formula for fahrenheit is: TEMP-50
 int fuel = 0;
+int blinkerR = 0x00;
+int blinkerL = 0x00;
+int fullBeam = 0x00;
+int handbrake = 0x00;
+int brakeApplied = 0x00;
+bool handbrakeOn = false;
+int tc = 0x00;
+int oilWarn = 0x00;
+int battWarn = 0x00;
+int absLight = 0x00;
+int tpms = 0x00;
+int counter = 0;
 String gear = "P";
 
 // Custom variable definitions:
@@ -91,15 +104,18 @@ int rpmgate = 96;  // <- rpm gate for ford rpm (96-115)
 int finetune = 0;  // <- rpm fine tuning inside of gate for ford rpm (0-255)
 int finetuner = 0; // <- speed fine tuning for the ford mk8 clusters
 int distance = 0; // something with distance for the speed on the ford mk8 cluster
-int blinkerR = B00001000;
-int blinkerL = B01000000;
 
-
-void loop() {
-  // Data reader loop
-  if (Serial.available() > 0) {
-    // Example data to send: 4000:100:80:100:N:European:
+void readSerial() {
+   if (Serial.available() > 0) {
+    // Example data to send: S:4000:100:90:100:N:0:0:0:0:0:0:0:0:0:European:
+    if(Serial.readStringUntil(':') != "S") {
+      Serial.flush();
+      return;
+    }
     rpm = Serial.readStringUntil(':').toInt();
+    if(rpm < 0) {
+      rpm = 0;
+    }
     rpmgate = 96 + (int)(rpm / 500);  // Calculate the gate and cast to int
     finetune = (int)(rpm % 500) / 2;
     if (rpmgate > 115) {
@@ -119,8 +135,59 @@ void loop() {
     }
     fuel = Serial.readStringUntil(':').toInt();
     gear = Serial.readStringUntil(':');
+    if(Serial.readStringUntil(':') == "1") {
+      blinkerL = B11111100;
+    } else {
+      blinkerL = B10111100;
+    }
+    if(Serial.readStringUntil(':') == "1") {
+      blinkerR = B00001000;
+    } else {
+      blinkerR = 0x00;
+    }
+    if(Serial.readStringUntil(':') == "1") {
+      fullBeam = B00110000;
+    } else {
+      fullBeam = 0x00;
+    }
+    if(Serial.readStringUntil(':') == "1") {
+      handbrakeOn = true;
+    } else {
+      handbrakeOn = false;
+    }
+    if(Serial.readStringUntil(':') == "1") {
+      tc = B00000010;
+    } else {
+      tc = 0x00;
+    }
+    if(Serial.readStringUntil(':') == "1") {
+      oilWarn = B00001000;
+    } else {
+      oilWarn = 0x00;
+    }
+    if(Serial.readStringUntil(':') == "1") {
+      battWarn = B00001000;
+    } else {
+      battWarn = 0x00;
+    }
+    if(Serial.readStringUntil(':') == "1") {
+      absLight = B01000000;
+    } else {
+      absLight = 0x00;
+    }
+    if(Serial.readStringUntil(':') == "1") {
+      tpms = B00000100;
+    } else {
+      tpms = 0x00;
+    }
     locale = Serial.readStringUntil(':');
   }
+}
+
+void loop() {
+  // Data reader loop
+  
+  readSerial();
 
   // Cluster opSends to keep cluster alive and functional
 
@@ -128,7 +195,7 @@ void loop() {
   opSend(0x591, 0x91, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
 
   //Ignition
-  opSend(0x3B2, B01000000, 0x00, 0x00, B1000000, B11110111, 0x00, B10111100, B00000000);
+  opSend(0x3B2, B01000000, 0x00, 0x00, B1000000, blinkerR, 0x00, blinkerL, 0x00);
   // Byte 4 B00000001 means dim, B0000100 means less dim, B0001000 means even less dim B0010000 means full brightness 
   // Last byte: B00000001 fog lights
   // First byte: B01000010 fog light 2, B01000100 means day lights, B01000000 screen on, B10000000 screen off, B01000001 door ajar light
@@ -147,19 +214,35 @@ void loop() {
 
   //Parking Brake (Fusion 2013)
   opSend(0x213, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
-
+  if(speed > 5 && handbrakeOn && counter < HANDBRAKE_FLASH_PERIOD) {
+    handbrake = B00010000;
+    brakeApplied = B11111111;
+    counter++;
+  } else if(speed > 5 && handbrakeOn && counter < HANDBRAKE_FLASH_PERIOD * 2) {
+    handbrake = 0x00;
+    brakeApplied = B11111111;
+    counter++;
+  } else if(counter >= HANDBRAKE_FLASH_PERIOD * 2) {
+    counter = 0;
+  } else if(handbrakeOn) {
+    handbrake = B00010000;
+    brakeApplied = 0x00;
+  } else {
+    handbrake = 0x00;
+    brakeApplied = 0x00;
+  }
   //Vehicle Alarm + Parking Brake
-  opSend(0x3C3, 0x00, B11111111, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+  opSend(0x3C3, 0x00, B11111111, handbrake, brakeApplied, 0x00, 0x00, 0x00, 0x00);
   //Bytes 1/2: B11111111=Alarm
   //Byte 3: B00010000=Park Brake
 
   //ABS
-  opSend(0x416, 0x0E, 0x00, 0x00, 0x00, 0x00, B00000000, B00000000, 0x00);
+  opSend(0x416, 0x0E, 0x00, 0x00, 0x00, 0x00, tc, 0x00, 0x00);
   //Byte 6: B00000100=Slow flashing TC, B00000010=Solid TC Light
   //Byte 7: B10000000=Rapid flashing ABS, B01000000=Solid ABS
 
   //TPMS
-  opSend(0x3b4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
+  opSend(0x3b4, tpms, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
   //Byte 1: 49=Shows Low Tire Pressure Menu, B00000100 shows still tire warning, B00001000 shows flashing tire warning
   //Byte 2: Highlights Front R and L tires
   //Byte 3: Same as above but rear
@@ -191,7 +274,7 @@ void loop() {
   opSend(0x46A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
 
   //High Beam + Auto Hed
-  opSend(0x46B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, B00000000);
+  opSend(0x46B, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, fullBeam);
   //Byte 8: B00110000=High Beam
   
   // RPM
@@ -210,17 +293,12 @@ void loop() {
   // Button Events
   if (digitalRead(OK_BTN_PIN) == LOW) {
     opSend(0x082, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
-    while (digitalRead(OK_BTN_PIN) == LOW) {}
-    opSend(0x082, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
-  }
-  if (digitalRead(UP_BTN_PIN) == LOW) {
+    
+  } else if (digitalRead(UP_BTN_PIN) == LOW) {
     opSend(0x082, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
-    while (digitalRead(UP_BTN_PIN) == LOW) {}
-    opSend(0x082, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
-  }
-  if (digitalRead(DOWN_BTN_PIN) == LOW) {
+  } else if (digitalRead(DOWN_BTN_PIN) == LOW) {
     opSend(0x082, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
-    while (digitalRead(DOWN_BTN_PIN) == LOW) {}
+  } else {
     opSend(0x082, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
   }
   //opSend(0xc2d, 20, 20, 20, 20, 20, 20, 20, 20); // Power reduced to lower engine temp
@@ -242,7 +320,7 @@ void loop() {
         opSend(0x04C, 0x00, 85, 85, 0x00, 0x00, 0x00, 0x00, 0x00); //Airbag
         opSend(0x213, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00); //Parking Brake (Fusion 2013)
         opSend(0x3C3, 0x00, B11111111, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);  //Vehicle Alarm + Parking Brake 
-        opSend(0x416, 0x0E, 0x00, 0x00, 0x00, 0x00, B00000000, B00000000, 0x00); //ABS  
+        opSend(0x416, 0x0E, 0x00, 0x00, 0x00, 0x00, B00000000, B00000000, 0x00); //absLight  
         opSend(0x3b4, 0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00); //TPMS
         opSend(0x421, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00); //ECU 
         opSend(0x42C, 0x00, 0x00, 0xA6, 0x00, 0x00, 0x00, 0x00, 0x00); //Charging System  
